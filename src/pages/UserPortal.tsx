@@ -3,7 +3,8 @@ import { useECommerce, Product, OrderItem } from '../context/ECommerceContext';
 import { 
   ShoppingBag, ChevronRight, Star, Heart, ArrowRight, 
   Trash2, X, ShieldCheck, AlertCircle, ShoppingCart, 
-  Tag, Award, BookOpen, User, RefreshCw
+  Tag, Award, BookOpen, User, RefreshCw,
+  MessageSquare, Send, Bot
 } from 'lucide-react';
 
 interface UserPortalProps {
@@ -51,6 +52,89 @@ export const UserPortal: React.FC<UserPortalProps> = ({ setView }) => {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
   const [reviewSuccess, setReviewSuccess] = useState(false);
+
+  // Chatbot State definitions
+  interface ChatMessage {
+    id: string;
+    sender: 'user' | 'bot';
+    text: string;
+    products?: Product[];
+    timestamp: Date;
+  }
+
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatInput, setChatInput] = useState('');
+  const [chatTyping, setChatTyping] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+    {
+      id: 'welcome',
+      sender: 'bot',
+      text: 'Namaste! Welcome to Gokul Traders metrology tool finder. How can I help you find the right precision measurement tools today?',
+      timestamp: new Date()
+    }
+  ]);
+
+  const submitChatText = (text: string) => {
+    if (!text.trim()) return;
+
+    const userMsg: ChatMessage = {
+      id: `msg-${Date.now()}`,
+      sender: 'user',
+      text,
+      timestamp: new Date()
+    };
+
+    setChatMessages(prev => [...prev, userMsg]);
+    const query = text.toLowerCase().trim();
+    setChatTyping(true);
+
+    setTimeout(() => {
+      setChatTyping(false);
+
+      const matchedProducts = products.filter(p => {
+        const nameMatch = p.name.toLowerCase().includes(query);
+        const descMatch = p.description.toLowerCase().includes(query);
+        const brandMatch = p.brand.toLowerCase().includes(query);
+        const catMatch = p.category.toLowerCase().includes(query);
+        const subcatMatch = p.subcategory.toLowerCase().includes(query);
+        const tagMatch = p.tags.some(t => t.toLowerCase().includes(query));
+        
+        const vernierSynonym = (query.includes('caliper') || query.includes('vernier')) && p.name.toLowerCase().includes('caliper');
+        const screwgaugeSynonym = (query.includes('micrometer') || query.includes('screw gauge') || query.includes('screwgauge') || query.includes('gauge')) && p.name.toLowerCase().includes('micrometer');
+        const dialGaugeSynonym = (query.includes('dial') || query.includes('indicator') || query.includes('plunger')) && p.name.toLowerCase().includes('dial');
+        const laserSynonym = (query.includes('laser') || query.includes('distance') || query.includes('rangefinder') || query.includes('meter')) && p.name.toLowerCase().includes('laser');
+        const slipgaugeSynonym = (query.includes('slip') || query.includes('block') || query.includes('calibration') || query.includes('check')) && p.name.toLowerCase().includes('slip');
+        const angleSynonym = (query.includes('angle') || query.includes('protractor') || query.includes('slope')) && p.name.toLowerCase().includes('angle');
+
+        return nameMatch || descMatch || brandMatch || catMatch || subcatMatch || tagMatch ||
+               vernierSynonym || screwgaugeSynonym || dialGaugeSynonym || laserSynonym || slipgaugeSynonym || angleSynonym;
+      });
+
+      let replyText = "";
+      if (matchedProducts.length > 0) {
+        replyText = `Based on your request, I found these measurement tools at Gokul Traders that fit your needs:`;
+      } else {
+        replyText = `I couldn't find a direct match for "${query}". At Gokul Traders, we specialize in high-precision Vernier Calipers, Micrometers, Plunger Dial Indicators, Laser Rangefinders, and Slip Gauge Calibration sets. What are you looking to measure?`;
+      }
+
+      const botMsg: ChatMessage = {
+        id: `msg-${Date.now()}`,
+        sender: 'bot',
+        text: replyText,
+        products: matchedProducts.slice(0, 3),
+        timestamp: new Date()
+      };
+
+      setChatMessages(prev => [...prev, botMsg]);
+    }, 850);
+  };
+
+  const handleSendChat = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
+    submitChatText(chatInput);
+    setChatInput('');
+  };
 
   // Determine if a product is ready to show (Published, or Scheduled which passed publish dates)
   const getVisibleProducts = (items: Product[]) => {
@@ -728,6 +812,306 @@ export const UserPortal: React.FC<UserPortalProps> = ({ setView }) => {
               Continue Shopping
             </button>
           </div>
+        </div>
+      )}
+      {/* ==========================================================================
+         FLOATING AI CHATBOT FINDER
+         ========================================================================== */}
+      {/* Floating Chat Trigger Button */}
+      <button
+        onClick={() => setChatOpen(!chatOpen)}
+        style={{
+          position: 'fixed',
+          right: '24px',
+          bottom: '24px',
+          width: '56px',
+          height: '56px',
+          borderRadius: '50%',
+          background: 'var(--primary-gradient)',
+          color: '#ffffff',
+          border: 'none',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 8px 24px rgba(99, 102, 241, 0.35)',
+          zIndex: 999,
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          transform: chatOpen ? 'rotate(90deg) scale(0.95)' : 'scale(1)'
+        }}
+        title="Ask Gokul Assistant"
+        onMouseEnter={(e) => e.currentTarget.style.transform = chatOpen ? 'rotate(90deg) scale(0.95)' : 'scale(1.08)'}
+        onMouseLeave={(e) => e.currentTarget.style.transform = chatOpen ? 'rotate(90deg) scale(0.95)' : 'scale(1)'}
+      >
+        {chatOpen ? <X size={24} /> : <MessageSquare size={24} />}
+      </button>
+
+      {/* Chat window overlay panel */}
+      {chatOpen && (
+        <div
+          className="glass-card"
+          style={{
+            position: 'fixed',
+            right: '24px',
+            bottom: '90px',
+            width: '380px',
+            height: '500px',
+            zIndex: 999,
+            padding: 0,
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: '0 12px 40px rgba(0, 0, 0, 0.15)',
+            border: '1px solid var(--border-color)',
+            animation: 'chatSlideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            background: 'var(--bg-glass)'
+          }}
+        >
+          {/* Chat Header */}
+          <div
+            style={{
+              padding: '16px 20px',
+              background: 'var(--primary-gradient)',
+              color: '#ffffff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div 
+                style={{ 
+                  width: '32px', 
+                  height: '32px', 
+                  borderRadius: '50%', 
+                  backgroundColor: 'rgba(255,255,255,0.2)', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center' 
+                }}
+              >
+                <Bot size={18} />
+              </div>
+              <div>
+                <h4 style={{ fontSize: '14px', fontWeight: 800, margin: 0 }}>Gokul AI Assistant</h4>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--success)' }}></span>
+                  <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.8)' }}>Metrology Support</span>
+                </div>
+              </div>
+            </div>
+            <button 
+              onClick={() => setChatOpen(false)}
+              style={{ background: 'none', border: 'none', color: '#ffffff', cursor: 'pointer', opacity: 0.8 }}
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          {/* Chat Messages Log */}
+          <div
+            style={{
+              flex: 1,
+              overflowY: 'auto',
+              padding: '20px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              backgroundColor: 'var(--bg-primary)'
+            }}
+          >
+            {chatMessages.map(msg => (
+              <div 
+                key={msg.id}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: msg.sender === 'user' ? 'flex-end' : 'flex-start',
+                  maxWidth: '85%',
+                  alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start',
+                  gap: '4px'
+                }}
+              >
+                <div
+                  style={{
+                    padding: '10px 14px',
+                    borderRadius: msg.sender === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
+                    backgroundColor: msg.sender === 'user' ? 'var(--primary)' : 'var(--bg-secondary)',
+                    color: msg.sender === 'user' ? '#ffffff' : 'var(--text-primary)',
+                    fontSize: '13px',
+                    lineHeight: '1.4',
+                    border: msg.sender === 'user' ? 'none' : '1px solid var(--border-color)',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
+                  }}
+                >
+                  {msg.text}
+                </div>
+
+                {/* Suggested Products list */}
+                {msg.products && msg.products.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px', width: '260px' }}>
+                    {msg.products.map(prod => (
+                      <div
+                        key={prod.id}
+                        onClick={() => {
+                          setSelectedProductId(prod.id);
+                          setChatOpen(false);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                        style={{
+                          display: 'flex',
+                          gap: '8px',
+                          alignItems: 'center',
+                          padding: '8px',
+                          backgroundColor: 'var(--bg-secondary)',
+                          border: '1px solid var(--border-color)',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          transition: 'var(--transition)',
+                          boxShadow: '0 4px 10px rgba(0,0,0,0.02)'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = 'var(--primary)';
+                          e.currentTarget.style.transform = 'translateY(-1px)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = 'var(--border-color)';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                        }}
+                      >
+                        <img 
+                          src={prod.images[0]} 
+                          alt={prod.name} 
+                          style={{ width: '40px', height: '40px', borderRadius: '4px', objectFit: 'cover' }} 
+                        />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <h5 style={{ fontSize: '11.5px', fontWeight: 700, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-primary)' }}>
+                            {prod.name}
+                          </h5>
+                          <span style={{ fontSize: '10px', color: 'var(--primary)', fontWeight: 700 }}>
+                            ₹{prod.price.toLocaleString('en-IN')}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {/* Typing indicator */}
+            {chatTyping && (
+              <div 
+                style={{
+                  alignSelf: 'flex-start',
+                  padding: '10px 14px',
+                  borderRadius: '12px 12px 12px 2px',
+                  backgroundColor: 'var(--bg-secondary)',
+                  border: '1px solid var(--border-color)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                <span className="dot" style={{ width: '5px', height: '5px', backgroundColor: 'var(--text-muted)', borderRadius: '50%', animation: 'bounce 0.6s infinite alternate' }}></span>
+                <span className="dot" style={{ width: '5px', height: '5px', backgroundColor: 'var(--text-muted)', borderRadius: '50%', animation: 'bounce 0.6s infinite alternate 0.2s' }}></span>
+                <span className="dot" style={{ width: '5px', height: '5px', backgroundColor: 'var(--text-muted)', borderRadius: '50%', animation: 'bounce 0.6s infinite alternate 0.4s' }}></span>
+              </div>
+            )}
+          </div>
+
+          {/* Quick suggestions footer bar */}
+          <div 
+            style={{ 
+              padding: '8px 12px', 
+              display: 'flex', 
+              gap: '6px', 
+              overflowX: 'auto', 
+              whiteSpace: 'nowrap',
+              borderTop: '1px solid var(--border-color)',
+              backgroundColor: 'var(--bg-secondary)'
+            }}
+          >
+            {[
+              'Vernier Caliper',
+              'Micrometer',
+              'Dial Indicator',
+              'Slip Gauge'
+            ].map(prompt => (
+              <button
+                key={prompt}
+                onClick={() => submitChatText(prompt)}
+                style={{
+                  fontSize: '11px',
+                  padding: '4px 10px',
+                  borderRadius: '12px',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: 'var(--bg-primary)',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  transition: 'var(--transition)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--primary)';
+                  e.currentTarget.style.color = 'var(--primary)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--border-color)';
+                  e.currentTarget.style.color = 'var(--text-secondary)';
+                }}
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
+
+          {/* Chat Form Input */}
+          <form
+            onSubmit={handleSendChat}
+            style={{
+              padding: '12px 16px',
+              borderTop: '1px solid var(--border-color)',
+              display: 'flex',
+              gap: '8px',
+              backgroundColor: 'var(--bg-secondary)'
+            }}
+          >
+            <input
+              type="text"
+              placeholder="Ask for calipers, gauges..."
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              style={{
+                flex: 1,
+                height: '38px',
+                fontSize: '13px',
+                padding: '0 12px',
+                borderRadius: '6px',
+                backgroundColor: 'var(--bg-primary)',
+                border: '1px solid var(--border-color)'
+              }}
+            />
+            <button
+              type="submit"
+              className="btn btn-primary"
+              style={{ width: '38px', height: '38px', padding: 0, borderRadius: '6px', flexShrink: 0 }}
+            >
+              <Send size={15} />
+            </button>
+          </form>
+          
+          {/* Embedded animations for chatbot */}
+          <style>{`
+            @keyframes chatSlideUp {
+              from { opacity: 0; transform: translateY(16px); }
+              to { opacity: 1; transform: translateY(0); }
+            }
+            @keyframes bounce {
+              to { transform: translateY(-4px); }
+            }
+          `}</style>
         </div>
       )}
     </div>
