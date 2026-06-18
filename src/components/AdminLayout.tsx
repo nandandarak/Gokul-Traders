@@ -80,7 +80,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ currentTab, setTab, se
                 key={item.id}
                 onClick={() => setTab(item.id)}
                 className={`menu-item ${isActive ? 'active' : ''}`}
-                style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left' }}
+                style={{ background: isActive ? undefined : 'none', border: 'none', width: '100%', textAlign: 'left' }}
               >
                 <IconComponent size={18} />
                 <span>{item.label}</span>
