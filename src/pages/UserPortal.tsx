@@ -843,7 +843,7 @@ export const UserPortal: React.FC<UserPortalProps> = ({ setView }) => {
         onMouseEnter={(e) => e.currentTarget.style.transform = chatOpen ? 'rotate(90deg) scale(0.95)' : 'scale(1.08)'}
         onMouseLeave={(e) => e.currentTarget.style.transform = chatOpen ? 'rotate(90deg) scale(0.95)' : 'scale(1)'}
       >
-        {chatOpen ? <X size={24} /> : <MessageSquare size={24} />}
+        {chatOpen ? <X size={24} /> : <Bot size={24} />}
       </button>
 
       {/* Chat window overlay panel */}
